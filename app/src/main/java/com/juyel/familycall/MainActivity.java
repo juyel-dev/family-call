@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
         renderApp();
         if (DeviceSession.isPaired(this)) {
             PushRegistration.register(this);
+            ensureCallPermissionsForNotifications();
         } else {
             handler.postDelayed(this::showPairingDialog, 300);
         }
