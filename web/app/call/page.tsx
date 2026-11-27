@@ -39,8 +39,10 @@ export default function CallPage() {
     setCallId(params.get("callId") || "");
     setRole(params.get("role") === "callee" ? "callee" : "caller");
     const injected = window.__FAMILY_CALL_DEVICE;
-    const savedToken = injected?.deviceToken || localStorage.getItem("family-call:device-token") || "";
-    const savedDevice = injected?.deviceId || localStorage.getItem("family-call:device-id") as DeviceId || "juyel";
+    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const savedToken = injected?.deviceToken || fragment.get("deviceToken") || localStorage.getItem("family-call:device-token") || "";
+    const savedDevice = injected?.deviceId || (fragment.get("deviceId") as DeviceId | null) || (localStorage.getItem("family-call:device-id") as DeviceId | null) || "juyel";
+    if (fragment.has("deviceToken")) history.replaceState({}, "", window.location.pathname + window.location.search);
     setToken(savedToken);
     setDeviceId(savedDevice);
     setCallType(params.get("type") === "video" ? "video" : "audio");
@@ -72,8 +74,8 @@ export default function CallPage() {
 
         peer.ontrack = (event) => {
           const remote = event.streams[0];
-          if (remoteVideoRef.current && callType === "video") remoteVideoRef.current.srcObject = remote;
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remote;
+          if (callType === "video" && remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
+          if (callType === "audio" && remoteAudioRef.current) remoteAudioRef.current.srcObject = remote;
           setStatus("Connected");
         };
         peer.onconnectionstatechange = () => {
@@ -96,6 +98,10 @@ export default function CallPage() {
           try { event = JSON.parse(String(message.data)); } catch { return; }
           if (event.type === "authenticated") {
             socket?.send(JSON.stringify({ type: "call:join", callId }));
+            const heartbeatId = window.setInterval(() => {
+              if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "heartbeat" }));
+            }, 20000);
+            socket?.addEventListener("close", () => window.clearInterval(heartbeatId), { once: true });
             setStatus("Waiting for family device…");
             return;
           }
