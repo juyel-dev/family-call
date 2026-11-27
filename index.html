@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f7f6" />
+  <meta name="description" content="A simple private calling space for Ma, Juyel, and Mim." />
+  <title>Family Call</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Family Call home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M8.8 5.8c.8-.7 2-.8 2.9-.1l3.1 2.5c.9.7 1.2 2 .6 3l-1.4 2.3c1.1 2.2 2.9 4 5.1 5.1l2.3-1.4c1-.6 2.3-.3 3 .6l2.5 3.1c.7.9.6 2.1-.1 2.9l-1.5 1.5c-1.5 1.5-3.8 2-5.8 1.2C11.7 23.4 8.6 20.3 5.5 12.5c-.8-2-.3-4.3 1.2-5.8l2.1-.9Z" fill="currentColor"/></svg>
+        </span>
+        <span class="brand-copy"><strong>Family Call</strong><small>Private family space</small></span>
+      </a>
+      <div class="nav-section-label">WORKSPACE</div>
+      <nav class="side-nav">
+        <button class="nav-item is-active" data-page="call" aria-current="page"><span class="nav-icon" aria-hidden="true">⌕</span><span>Call</span></button>
+        <button class="nav-item" data-page="missed" aria-current="false"><span class="nav-icon" aria-hidden="true">◷</span><span>Missed calls</span><span class="nav-count">0</span></button>
+        <button class="nav-item" data-page="settings" aria-current="false"><span class="nav-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-foot"><span class="secure-dot" aria-hidden="true"></span><span>Made for three people</span></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mark small" aria-hidden="true">☎</span><strong>Family Call</strong></div>
+        <div class="topbar-spacer"></div>
+        <div class="device-chip"><span class="device-avatar">J</span><span class="device-name">Juyel’s laptop</span></div>
+      </header>
+
+      <section class="page-view is-visible" data-view="call" aria-labelledby="page-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">YOUR PRIVATE SPACE</p><h1 id="page-title">Call your family</h1><p class="page-subtitle">Choose someone and start an audio or video call.</p></div>
+          <span class="connection-pill"><span class="status-dot" aria-hidden="true"></span><span>Setup pending</span></span>
+        </div>
+
+        <div class="setup-notice" role="status">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <div><strong>Calling is not connected yet</strong><p>This is the first web app build. Call buttons will work after the secure call connection is set up.</p></div>
+        </div>
+
+        <div class="section-heading"><div><h2>Family contacts</h2><p>Only your family contacts appear here.</p></div><span class="contact-total">2 contacts</span></div>
+
+        <div class="contact-grid">
+          <article class="contact-card">
+            <div class="contact-card-top"><div class="person-avatar avatar-ma" aria-hidden="true">Ma</div><span class="presence presence-pending"><span></span> Not connected</span></div>
+            <div class="contact-info"><h3>Ma</h3><p>OPPO phone</p></div>
+            <div class="contact-actions">
+              <button class="action-button action-audio" data-call="audio" data-contact="Ma"><span aria-hidden="true">☎</span> Audio call</button>
+              <button class="action-button action-video" data-call="video" data-contact="Ma"><span aria-hidden="true">▣</span> Video call</button>
+            </div>
+          </article>
+          <article class="contact-card">
+            <div class="contact-card-top"><div class="person-avatar avatar-mim" aria-hidden="true">M</div><span class="presence presence-pending"><span></span> Not connected</span></div>
+            <div class="contact-info"><h3>Mim</h3><p>Family contact</p></div>
+            <div class="contact-actions">
+              <button class="action-button action-audio" data-call="audio" data-contact="Mim"><span aria-hidden="true">☎</span> Audio call</button>
+              <button class="action-button action-video" data-call="video" data-contact="Mim"><span aria-hidden="true">▣</span> Video call</button>
+            </div>
+          </article>
+        </div>
+        <div class="bottom-note"><span class="lock-icon" aria-hidden="true">▣</span>No login · No signup · No QR scan</div>
+      </section>
+
+      <section class="page-view" data-view="missed" aria-labelledby="missed-title" hidden>
+        <div class="page-heading"><div><p class="eyebrow">CALL HISTORY</p><h1 id="missed-title">Missed calls</h1><p class="page-subtitle">Calls you did not answer will appear here.</p></div></div>
+        <div class="empty-state"><div class="empty-icon" aria-hidden="true">◷</div><h2>No missed calls</h2><p>Your missed calls will be listed here.</p><button class="text-button" data-go="call">Back to contacts <span aria-hidden="true">→</span></button></div>
+      </section>
+
+      <section class="page-view" data-view="settings" aria-labelledby="settings-title" hidden>
+        <div class="page-heading"><div><p class="eyebrow">PREFERENCES</p><h1 id="settings-title">Settings</h1><p class="page-subtitle">A few details about this device.</p></div></div>
+        <div class="settings-layout">
+          <article class="settings-card"><p class="settings-label">THIS DEVICE</p>
+            <div class="settings-row"><span class="settings-icon">⌨</span><span class="settings-copy"><strong>Juyel’s laptop</strong><small>Web app device</small></span><span class="settings-value">This device</span></div>
+            <div class="settings-divider"></div>
+            <div class="settings-row"><span class="settings-icon">◉</span><span class="settings-copy"><strong>Family members</strong><small>Ma, Juyel, and Mim</small></span><span class="settings-value">3 people</span></div>
+          </article>
+          <article class="settings-card"><p class="settings-label">CALLING</p>
+            <div class="settings-row"><span class="settings-icon">♫</span><span class="settings-copy"><strong>Incoming call sound</strong><small>Browser sound after permission</small></span><span class="settings-value value-pending">Not configured</span></div>
+            <div class="settings-divider"></div>
+            <div class="settings-row"><span class="settings-icon">⌁</span><span class="settings-copy"><strong>Call connection</strong><small>Secure signaling is not configured yet</small></span><span class="settings-value value-pending">Pending</span></div>
+          </article>
+          <div class="settings-footnote"><strong>Private by design</strong><p>There will be no public signup or account system. Each approved device will be set up for this family only.</p></div>
+        </div>
+      </section>
+
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <button class="mobile-nav-item" data-page="missed" aria-current="false"><span aria-hidden="true">◷</span><small>Missed</small></button>
+        <button class="mobile-nav-item is-active" data-page="call" aria-current="page"><span aria-hidden="true">☎</span><small>Call</small></button>
+        <button class="mobile-nav-item" data-page="settings" aria-current="false"><span aria-hidden="true">⚙</span><small>Setting</small></button>
+      </nav>
+    </main>
+  </div>
+
+  <dialog class="call-dialog" id="call-dialog" aria-labelledby="dialog-title">
+    <button class="dialog-close" type="button" data-close aria-label="Close">×</button>
+    <div class="dialog-mark" aria-hidden="true">☎</div>
+    <p class="eyebrow">CALL SERVICE NOT READY</p>
+    <h2 id="dialog-title">Could not start call</h2>
+    <p id="dialog-message">The secure call connection has not been configured yet.</p>
+    <button class="primary-button" type="button" data-close>Got it</button>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

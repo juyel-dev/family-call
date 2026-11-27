@@ -2,6 +2,8 @@ package com.juyel.familycall;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -18,10 +20,17 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
 public class IncomingCallActivity extends Activity {
+    public static final String EXTRA_CALL_ID = "call_id";
     public static final String EXTRA_CALLER_NAME = "caller_name";
+    public static final String EXTRA_CALL_TYPE = "call_type";
 
     private Ringtone ringtone;
+    private String callId = "";
+    private String callerName = "Family contact";
+    private String callType = "audio";
     private final int white = Color.WHITE;
     private final int secondary = Color.rgb(198, 210, 216);
 
@@ -43,31 +52,35 @@ public class IncomingCallActivity extends Activity {
                             | android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        String caller = getIntent().getStringExtra(EXTRA_CALLER_NAME);
-        if (caller == null || caller.trim().isEmpty()) caller = "Family contact";
-        buildScreen(caller);
+        callId = getIntent().getStringExtra(EXTRA_CALL_ID);
+        String incomingName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
+        if (incomingName != null && !incomingName.trim().isEmpty()) callerName = incomingName;
+        String incomingType = getIntent().getStringExtra(EXTRA_CALL_TYPE);
+        if ("video".equals(incomingType)) callType = "video";
+
+        buildScreen();
         startRingtone();
     }
 
-    private void buildScreen(String caller) {
+    private void buildScreen() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(dp(28), dp(48), dp(28), dp(38));
         root.setBackgroundColor(Color.rgb(16, 28, 42));
 
-        TextView label = text("INCOMING AUDIO CALL", 12, secondary, true);
+        TextView label = text("INCOMING " + callType.toUpperCase() + " CALL", 12, secondary, true);
         label.setLetterSpacing(0.12f);
         root.addView(label);
 
-        TextView avatar = text(initial(caller), 42, Color.WHITE, true);
+        TextView avatar = text(initial(callerName), 42, Color.WHITE, true);
         avatar.setGravity(Gravity.CENTER);
         avatar.setBackground(circle(Color.rgb(8, 127, 114)));
         LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(112), dp(112));
         avatarParams.topMargin = dp(65);
         root.addView(avatar, avatarParams);
 
-        TextView name = text(caller, 30, white, true);
+        TextView name = text(callerName, 30, white, true);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         nameParams.topMargin = dp(22);
@@ -93,13 +106,14 @@ public class IncomingCallActivity extends Activity {
         actions.addView(accept, acceptParams);
         root.addView(actions);
 
-        TextView note = text("Preview only — remote calling is not connected", 11,
-                Color.rgb(151, 168, 178), false);
-        note.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        noteParams.topMargin = dp(28);
-        root.addView(note, noteParams);
+        if (callId == null || callId.isEmpty()) {
+            TextView note = text("Local preview only", 11, Color.rgb(151, 168, 178), false);
+            note.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            noteParams.topMargin = dp(28);
+            root.addView(note, noteParams);
+        }
 
         setContentView(root);
     }
@@ -125,21 +139,79 @@ public class IncomingCallActivity extends Activity {
         wrapper.addView(caption, captionParams);
 
         wrapper.setOnClickListener(v -> {
-            if ("Reject".equals(label)) {
-                finish();
-            } else {
-                stopRingtone();
-                new AlertDialog.Builder(this)
-                        .setTitle("Call service not connected")
-                        .setMessage("This is the incoming-call UI preview. Remote calling has not been connected yet.")
-                        .setPositiveButton("OK", (dialog, which) -> finish())
-                        .setOnCancelListener(dialog -> finish())
-                        .show();
-            }
+            if ("Reject".equals(label)) rejectCall();
+            else acceptCall();
         });
         symbol.setOnClickListener(v -> wrapper.performClick());
         caption.setOnClickListener(v -> wrapper.performClick());
         return wrapper;
+    }
+
+    private void acceptCall() {
+        stopRingtone();
+        if (callId == null || callId.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Preview only")
+                    .setMessage("This screen is a local ringtone preview. A remote call needs a real incoming call.")
+                    .setPositiveButton("OK", (dialog, which) -> finish())
+                    .show();
+            return;
+        }
+
+        String token = DeviceSession.token(this);
+        if (token.isEmpty()) {
+            Toast.makeText(this, "Set up this device before answering.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("callId", callId);
+                body.put("action", "accept");
+                ApiClient.post("/api/calls/action", body, token);
+
+                runOnUiThread(() -> {
+                    NotificationManager manager = getSystemService(NotificationManager.class);
+                    if (manager != null) manager.cancel(2401);
+                    Intent intent = new Intent(this, CallSessionActivity.class);
+                    intent.putExtra(CallSessionActivity.EXTRA_CALL_ID, callId);
+                    intent.putExtra(CallSessionActivity.EXTRA_CALLER_NAME, callerName);
+                    intent.putExtra(CallSessionActivity.EXTRA_CALL_TYPE, callType);
+                    startActivity(intent);
+                    finish();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> new AlertDialog.Builder(this)
+                        .setTitle("Could not answer call")
+                        .setMessage(error.getMessage() == null ? "Check your internet connection and try again." : error.getMessage())
+                        .setPositiveButton("OK", (dialog, which) -> finish())
+                        .show());
+            }
+        }).start();
+    }
+
+    private void rejectCall() {
+        stopRingtone();
+        if (callId == null || callId.isEmpty()) {
+            finish();
+            return;
+        }
+        String token = DeviceSession.token(this);
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("callId", callId);
+                body.put("action", "reject");
+                if (!token.isEmpty()) ApiClient.post("/api/calls/action", body, token);
+            } catch (Exception ignored) {
+                // Best-effort rejection: the local screen still closes if the network is down.
+            }
+        }).start();
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) manager.cancel(2401);
+        finish();
     }
 
     private void startRingtone() {
