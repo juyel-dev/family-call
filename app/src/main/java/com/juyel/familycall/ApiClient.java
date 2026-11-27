@@ -11,7 +11,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public final class ApiClient {
-    public static final String BASE_URL = "https://family-call-orpin.vercel.app";
+    public static final String BASE_URL = BuildConfig.SERVER_BASE_URL;
 
     private ApiClient() {}
 
