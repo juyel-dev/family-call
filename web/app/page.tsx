@@ -43,8 +43,8 @@ export default function HomePage() {
     }
   }, []);
 
-  const navigateToCall = useCallback((callId: string, role: "caller" | "callee") => {
-    router.push("/call?callId=" + encodeURIComponent(callId) + "&role=" + role);
+  const navigateToCall = useCallback((callId: string, role: "caller" | "callee", type: "audio" | "video" = "audio") => {
+    router.push("/call?callId=" + encodeURIComponent(callId) + "&role=" + role + "&type=" + type);
   }, [router]);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function HomePage() {
             break;
           case "call:accepted":
             setIncoming(null);
-            navigateToCall(String(event.callId), "caller");
+            navigateToCall(String(event.callId), "caller", event.callType === "video" ? "video" : "audio");
             break;
           case "call:rejected":
             setOutgoing(null);
@@ -119,7 +119,13 @@ export default function HomePage() {
     };
 
     connect();
+    const heartbeat = window.setInterval(() => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: "heartbeat" }));
+      }
+    }, 20000);
     return () => {
+      window.clearInterval(heartbeat);
       disposed = true;
       if (reconnectRef.current !== null) window.clearTimeout(reconnectRef.current);
       socketRef.current?.close();
@@ -170,7 +176,7 @@ export default function HomePage() {
     socket.send(JSON.stringify({ type: "call:accept", callId: incoming.callId }));
     const callId = incoming.callId;
     setIncoming(null);
-    navigateToCall(callId, "callee");
+    navigateToCall(callId, "callee", incoming.callType);
   }
 
   function rejectIncoming() {
