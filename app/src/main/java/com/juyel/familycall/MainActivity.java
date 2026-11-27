@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.text.InputType;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.Ringtone;
@@ -15,12 +16,17 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     private static final int TAB_MISSED = 0;
@@ -48,6 +54,11 @@ public class MainActivity extends Activity {
         window.setNavigationBarColor(Color.WHITE);
         window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         renderApp();
+        if (DeviceSession.isPaired(this)) {
+            PushRegistration.register(this);
+        } else {
+            handler.postDelayed(this::showPairingDialog, 300);
+        }
     }
 
     @Override
@@ -169,8 +180,17 @@ public class MainActivity extends Activity {
         hintParams.bottomMargin = dp(16);
         body.addView(hint, hintParams);
 
-        body.addView(buildContactCard("Mim", "M", "Family contact"));
-        body.addView(buildContactCard("Juyel", "J", "Family contact"));
+        String ownDevice = DeviceSession.deviceId(this);
+        if ("ma".equals(ownDevice)) {
+            body.addView(buildContactCard("Juyel", "J", "Laptop", "juyel"));
+            body.addView(buildContactCard("Mim", "M", "Family phone", "mim"));
+        } else if ("mim".equals(ownDevice)) {
+            body.addView(buildContactCard("Ma", "Ma", "OPPO phone", "ma"));
+            body.addView(buildContactCard("Juyel", "J", "Laptop", "juyel"));
+        } else {
+            body.addView(buildContactCard("Ma", "Ma", "OPPO phone", "ma"));
+            body.addView(buildContactCard("Mim", "M", "Family phone", "mim"));
+        }
 
         TextView privacy = text("Private contact list • No account or sign-up", 11, muted, false);
         privacy.setGravity(Gravity.CENTER);
@@ -181,7 +201,7 @@ public class MainActivity extends Activity {
         return scroll(body);
     }
 
-    private View buildContactCard(String name, String initial, String detail) {
+    private View buildContactCard(String name, String initial, String detail, String targetDeviceId) {
         LinearLayout card = cardColumn();
 
         LinearLayout identity = new LinearLayout(this);
@@ -214,9 +234,9 @@ public class MainActivity extends Activity {
         actionsParams.topMargin = dp(17);
 
         TextView audio = actionButton("☎  Audio call", true);
-        audio.setOnClickListener(v -> showCallNotConnected(name, "audio"));
+        audio.setOnClickListener(v -> startOutgoingCall(targetDeviceId, "audio"));
         TextView video = actionButton("▣  Video call", false);
-        video.setOnClickListener(v -> showCallNotConnected(name, "video"));
+        video.setOnClickListener(v -> startOutgoingCall(targetDeviceId, "video"));
 
         actions.addView(audio, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1f));
@@ -358,6 +378,125 @@ public class MainActivity extends Activity {
         params.topMargin = dp(3);
         params.bottomMargin = dp(3);
         parent.addView(line, params);
+    }
+
+
+    private void ensureCallPermissionsForNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 7302);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            android.app.NotificationManager manager = getSystemService(android.app.NotificationManager.class);
+            if (manager != null && !manager.canUseFullScreenIntent()) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Allow full-screen call alerts")
+                        .setMessage("Family Call needs full-screen notification permission to show the incoming call screen when your phone is locked.")
+                        .setPositiveButton("Open settings", (dialog, which) -> {
+                            Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                            settings.setData(android.net.Uri.parse("package:" + getPackageName()));
+                            startActivity(settings);
+                        })
+                        .setNegativeButton("Later", null)
+                        .show();
+            }
+        }
+    }
+
+    private void showPairingDialog() {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(22), dp(8), dp(22), 0);
+
+        TextView help = text("Choose who owns this phone. Enter the one-time family setup PIN. No account, password or QR scan is used.", 13, muted, false);
+        form.addView(help);
+
+        TextView deviceLabel = text("This device belongs to", 12, ink, true);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        labelParams.topMargin = dp(16);
+        form.addView(deviceLabel, labelParams);
+
+        Spinner deviceSpinner = new Spinner(this);
+        String[] names = new String[]{"Ma — OPPO phone", "Juyel — Laptop", "Mim — Phone"};
+        deviceSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
+        form.addView(deviceSpinner, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+
+        TextView pinLabel = text("Private setup PIN", 12, ink, true);
+        LinearLayout.LayoutParams pinLabelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        pinLabelParams.topMargin = dp(10);
+        form.addView(pinLabel, pinLabelParams);
+
+        EditText pinInput = new EditText(this);
+        pinInput.setSingleLine(true);
+        pinInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pinInput.setHint("Enter setup PIN");
+        form.addView(pinInput, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(50)));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Set up Family Call")
+                .setView(form)
+                .setCancelable(false)
+                .setPositiveButton("Pair device", null)
+                .setNegativeButton("Close app", (d, which) -> finish())
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            String pin = pinInput.getText().toString().trim();
+            if (pin.length() < 6) {
+                pinInput.setError("Enter the setup PIN");
+                return;
+            }
+            String deviceId = deviceSpinner.getSelectedItemPosition() == 0 ? "ma"
+                    : deviceSpinner.getSelectedItemPosition() == 2 ? "mim" : "juyel";
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+
+            new Thread(() -> {
+                try {
+                    JSONObject body = new JSONObject();
+                    body.put("deviceId", deviceId);
+                    body.put("pin", pin);
+                    JSONObject response = ApiClient.post("/api/pair", body, null);
+                    String token = response.optString("deviceToken", "");
+                    if (token.isEmpty()) throw new IllegalStateException("The server did not return a device token.");
+                    DeviceSession.save(this, deviceId, token);
+                    runOnUiThread(() -> {
+                        dialog.dismiss();
+                        renderApp();
+                        PushRegistration.register(this);
+                        ensureCallPermissionsForNotifications();
+                        Toast.makeText(this, "This device is paired.", Toast.LENGTH_LONG).show();
+                    });
+                } catch (Exception error) {
+                    runOnUiThread(() -> {
+                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
+                        String message = error.getMessage() == null ? "Pairing failed." : error.getMessage();
+                        new AlertDialog.Builder(this)
+                                .setTitle("Could not pair this device")
+                                .setMessage(message)
+                                .setPositiveButton("OK", null)
+                                .show();
+                    });
+                }
+            }).start();
+        }));
+        dialog.show();
+    }
+
+    private void startOutgoingCall(String targetDeviceId, String callType) {
+        if (!DeviceSession.isPaired(this)) {
+            showPairingDialog();
+            return;
+        }
+        Intent intent = new Intent(this, CallSessionActivity.class);
+        intent.putExtra(CallSessionActivity.EXTRA_TARGET_DEVICE, targetDeviceId);
+        intent.putExtra(CallSessionActivity.EXTRA_CALL_TYPE, callType);
+        startActivity(intent);
     }
 
     private void showCallNotConnected(String person, String type) {
