@@ -85,10 +85,10 @@ public class IncomingCallActivity extends Activity {
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER);
-        TextView reject = callAction("✕", "Reject", Color.rgb(214, 65, 79));
-        TextView accept = callAction("☎", "Accept", Color.rgb(28, 166, 103));
-        actions.addView(reject, new LinearLayout.LayoutParams(0, dp(88), 1f));
-        LinearLayout.LayoutParams acceptParams = new LinearLayout.LayoutParams(0, dp(88), 1f);
+        LinearLayout reject = callAction("✕", "Reject", Color.rgb(214, 65, 79));
+        LinearLayout accept = callAction("☎", "Accept", Color.rgb(28, 166, 103));
+        actions.addView(reject, new LinearLayout.LayoutParams(0, dp(98), 1f));
+        LinearLayout.LayoutParams acceptParams = new LinearLayout.LayoutParams(0, dp(98), 1f);
         acceptParams.leftMargin = dp(34);
         actions.addView(accept, acceptParams);
         root.addView(actions);
@@ -101,69 +101,29 @@ public class IncomingCallActivity extends Activity {
         noteParams.topMargin = dp(28);
         root.addView(note, noteParams);
 
-        reject.setOnClickListener(v -> finish());
-        accept.setOnClickListener(v -> {
-            stopRingtone();
-            new AlertDialog.Builder(this)
-                    .setTitle("Call service not connected")
-                    .setMessage("This preview confirms the native incoming-call screen and ringtone. Remote audio/video will work after the call service is connected.")
-                    .setPositiveButton("OK", (dialog, which) -> finish())
-                    .setOnCancelListener(dialog -> finish())
-                    .show();
-        });
-
         setContentView(root);
     }
 
-    private TextView callAction(String icon, String label, int color) {
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER);
-
-        TextView symbol = text(icon, 24, white, true);
-        symbol.setGravity(Gravity.CENTER);
-        TextView caption = text(label, 12, white, true);
-        caption.setGravity(Gravity.CENTER);
-        content.addView(symbol);
-        LinearLayout.LayoutParams captionParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        captionParams.topMargin = dp(5);
-        content.addView(caption, captionParams);
-
-        TextView button = text("", 12, white, true);
-        button.setGravity(Gravity.CENTER);
-        button.setBackground(circle(color));
-        button.setCompoundDrawables(null, null, null, null);
-        button.setText("");
-        button.setContentDescription(label);
-        button.setClickable(true);
-        button.setFocusable(true);
-        button.setBackground(circle(color));
-        button.setForeground(getDrawable(android.R.drawable.list_selector_background));
-        button.setOnClickListener(v -> {
-            if (label.equals("Reject")) finish();
-            else {
-                stopRingtone();
-                new AlertDialog.Builder(this)
-                        .setTitle("Call service not connected")
-                        .setMessage("This is the incoming-call UI preview. Remote calling has not been connected yet.")
-                        .setPositiveButton("OK", (dialog, which) -> finish())
-                        .show();
-            }
-        });
-
+    private LinearLayout callAction(String icon, String label, int color) {
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.setGravity(Gravity.CENTER);
-        wrapper.addView(button, new LinearLayout.LayoutParams(dp(64), dp(64)));
-        wrapper.addView(caption, captionParams);
-        return wrapperAsTextView(wrapper, label);
-    }
+        wrapper.setClickable(true);
+        wrapper.setFocusable(true);
 
-    private TextView wrapperAsTextView(LinearLayout wrapper, String label) {
-        TextView touchTarget = text("", 1, white, false);
-        touchTarget.setVisibility(View.GONE);
-        wrapper.setTag(label);
+        TextView symbol = text(icon, 24, white, true);
+        symbol.setGravity(Gravity.CENTER);
+        symbol.setBackground(circle(color));
+        symbol.setContentDescription(label);
+        wrapper.addView(symbol, new LinearLayout.LayoutParams(dp(64), dp(64)));
+
+        TextView caption = text(label, 12, white, true);
+        caption.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams captionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        captionParams.topMargin = dp(7);
+        wrapper.addView(caption, captionParams);
+
         wrapper.setOnClickListener(v -> {
             if ("Reject".equals(label)) {
                 finish();
@@ -173,12 +133,13 @@ public class IncomingCallActivity extends Activity {
                         .setTitle("Call service not connected")
                         .setMessage("This is the incoming-call UI preview. Remote calling has not been connected yet.")
                         .setPositiveButton("OK", (dialog, which) -> finish())
+                        .setOnCancelListener(dialog -> finish())
                         .show();
             }
         });
-        wrapper.setClickable(true);
-        wrapper.setFocusable(true);
-        return new ActionContainerView(this, wrapper);
+        symbol.setOnClickListener(v -> wrapper.performClick());
+        caption.setOnClickListener(v -> wrapper.performClick());
+        return wrapper;
     }
 
     private void startRingtone() {
@@ -231,18 +192,5 @@ public class IncomingCallActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private static class ActionContainerView extends TextView {
-        ActionContainerView(Activity activity, LinearLayout wrapper) {
-            super(activity);
-            setVisibility(View.GONE);
-            wrapper.setClickable(true);
-            wrapper.setFocusable(true);
-            wrapper.setOnClickListener(v -> {
-                View parent = (View) v.getParent();
-                if (parent != null) parent.performClick();
-            });
-        }
     }
 }
